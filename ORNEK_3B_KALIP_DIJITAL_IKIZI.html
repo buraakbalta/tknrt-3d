@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Teknorot 3B Mobil Kalıp Simülatörü (QR Digital Twin)</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',system-ui,sans-serif;-webkit-tap-highlight-color:transparent;}
+body{background:#0f172a;color:#f8fafc;display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+header{background:#1e293b;padding:10px 14px;border-bottom:2px solid #38bdf8;display:flex;justify-content:space-between;align-items:center;z-index:10;}
+.h-title{font-size:14px;font-weight:800;color:#38bdf8;letter-spacing:0.4px;}
+.h-sub{font-size:11px;color:#94a3b8;font-weight:600;}
+#viewport{position:relative;flex:1;background:radial-gradient(circle at center,#1e293b 0%,#090d16 100%);touch-action:none;overflow:hidden;}
+canvas{width:100%;height:100%;display:block;cursor:grab;}canvas:active{cursor:grabbing;}
+#hudCard{position:absolute;top:10px;left:10px;right:10px;background:rgba(15,23,42,0.88);border:1px solid #334155;border-left:4px solid #facc15;border-radius:8px;padding:8px 12px;pointer-events:none;backdrop-filter:blur(6px);}
+#hudName{font-size:13px;font-weight:800;color:#facc15;}#hudMeta{font-size:11px;color:#cbd5e1;margin-top:2px;}
+.ctrl-bar{background:#1e293b;padding:8px 12px;border-top:1px solid #334155;display:flex;flex-direction:column;gap:6px;}
+.slider-row{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#38bdf8;}
+input[type=range]{flex:1;accent-color:#f59e0b;height:6px;cursor:pointer;}
+.btn-row{display:flex;gap:6px;overflow-x:auto;}
+button{flex:1;background:#334155;color:#fff;border:1px solid #475569;border-radius:6px;padding:7px 8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;}
+button.step-btn{background:#059669;border-color:#10b981;}
+#partList{height:185px;overflow-y:auto;background:#0f172a;border-top:1px solid #334155;}
+.p-item{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid #1e293b;font-size:12px;cursor:pointer;}
+.p-item:hover,.p-item.sel{background:#1e3a8a;border-left:4px solid #facc15;}
+.p-badge{padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700;background:#334155;color:#e2e8f0;}
+</style>
+</head>
+<body>
+<header>
+  <div><div class="h-title">TEKNOROT 3B DİJİTAL KALIP İKİZİ</div><div class="h-sub">Parmakla 3B Çevir • Patlat • Parçaya Dokun Parlasın</div></div>
+  <div class="h-sub" id="stepCounter">Tüm Kalıp</div>
+</header>
+<div id="viewport">
+  <canvas id="c3d"></canvas>
+  <div id="hudCard">
+    <div id="hudName">KALIP GENEL GÖRÜNÜMÜ</div>
+    <div id="hudMeta">Parçaya veya aşağıdaki listeye dokunarak 3B röntgen modunda inceleyin.</div>
+  </div>
+</div>
+<div class="ctrl-bar">
+  <div class="slider-row"><span>💥 Patlatma:</span><input type="range" id="expSlider" min="0" max="100" value="0"><span id="expVal">0%</span></div>
+  <div class="btn-row">
+    <button id="btnXray" onclick="toggleXray()">🔦 Röntgen: AÇIK</button>
+    <button id="btnWire" onclick="toggleWire()">📐 Çizgisel: AÇIK</button>
+    <button class="step-btn" onclick="stepAssembly(-1)">⏮ Önceki Adım</button>
+    <button class="step-btn" onclick="stepAssembly(1)">Sonraki Adım ⏭</button>
+    <button onclick="resetView()">🔄 Sıfırla</button>
+  </div>
+</div>
+<div id="partList"></div>
+<script>
+const DEFAULT_DEMO_PARTS = [
+  {id:1,name:"01-ALT PLAKA",mat:"1.1040",hrd:"-",rawKg:593.5,netKg:334.8,dim:"96x836x896",cx:0,cy:0,cz:0,sx:896,sy:836,sz:96,cyl:0,lyr:-2.2,col:"#94a3b8"},
+  {id:2,name:"02-ÜST PLAKA",mat:"1.1040",hrd:"-",rawKg:237.4,netKg:202.8,dim:"36x836x896",cx:0,cy:0,cz:310,sx:896,sy:836,sz:36,cyl:0,lyr:2.4,col:"#94a3b8"},
+  {id:3,name:"03-FORM ERKEK DESTEK-1",mat:"1.1040",hrd:"-",rawKg:88.1,netKg:71.7,dim:"106x196x497",cx:-160,cy:0,cz:220,sx:196,sy:497,sz:106,cyl:0,lyr:1.4,col:"#38bdf8"},
+  {id:4,name:"04-FORM ERKEK DESTEK-2",mat:"1.1040",hrd:"-",rawKg:88.1,netKg:71.5,dim:"106x196x497",cx:160,cy:0,cz:220,sx:196,sy:497,sz:106,cyl:0,lyr:1.4,col:"#38bdf8"},
+  {id:5,name:"05-ÇIKARICI-1",mat:"1.2714",hrd:"-",rawKg:170.5,netKg:66.2,dim:"97x411x465",cx:-150,cy:0,cz:95,sx:411,sy:465,sz:97,cyl:0,lyr:-0.3,col:"#f59e0b"},
+  {id:6,name:"06-ÇIKARICI-2",mat:"1.2714",hrd:"-",rawKg:170.5,netKg:65.9,dim:"97x411x465",cx:150,cy:0,cz:95,sx:411,sy:465,sz:97,cyl:0,lyr:-0.3,col:"#f59e0b"},
+  {id:7,name:"07-FORM ERKEK-1",mat:"1.2379",hrd:"58-60 HRC",rawKg:148.8,netKg:52.6,dim:"87x416x455",cx:-155,cy:0,cz:160,sx:416,sy:455,sz:87,cyl:0,lyr:0.7,col:"#f43f5e"},
+  {id:8,name:"08-FORM ERKEK-2",mat:"1.2379",hrd:"58-60 HRC",rawKg:148.8,netKg:52.6,dim:"87x416x455",cx:155,cy:0,cz:160,sx:416,sy:455,sz:87,cyl:0,lyr:0.7,col:"#f43f5e"},
+  {id:9,name:"13-DİŞİ-1",mat:"1.2379",hrd:"58-60 HRC",rawKg:25.0,netKg:8.2,dim:"87x125x237",cx:-240,cy:0,cz:75,sx:125,sy:237,sz:87,cyl:0,lyr:-1.0,col:"#f43f5e"},
+  {id:10,name:"14-DİŞİ-2",mat:"1.2379",hrd:"58-60 HRC",rawKg:25.0,netKg:8.2,dim:"87x125x237",cx:240,cy:0,cz:75,sx:125,sy:237,sz:87,cyl:0,lyr:-1.0,col:"#f43f5e"}
+];
+
+function loadPartsFromUrlHash() {
+  let hash = window.location.hash;
+  if (!hash || hash.length < 5) return DEFAULT_DEMO_PARTS;
+  try {
+    let pMatch = hash.match(/P=([^&]+)/);
+    let dMatch = hash.match(/D=([^&]+)/);
+    if (pMatch) {
+      let title = decodeURIComponent(pMatch[1]).replace(/_/g, ' ');
+      let tEl = document.querySelector('.h-title');
+      if (tEl) tEl.innerText = "TEKNOROT 3B DİJİTAL KALIP - " + title;
+      document.title = title + " - 3B Dijital Kalıp İkizi";
+    }
+    if (!dMatch) return DEFAULT_DEMO_PARTS;
+    let rawStr = decodeURIComponent(dMatch[1]);
+    let partTokens = rawStr.split('|');
+    let loaded = [];
+    partTokens.forEach((tok, idx) => {
+      if (!tok) return;
+      let f = tok.split(',');
+      if (f.length >= 10) {
+        let name = f[0].replace(/_/g, ' ');
+        let mat = f[1];
+        let rawKg = parseFloat(f[2]) || 0;
+        let netKg = parseFloat(f[3]) || 0;
+        let cx = parseFloat(f[4]) || 0;
+        let cy = parseFloat(f[5]) || 0;
+        let cz = parseFloat(f[6]) || 0;
+        let sx = Math.max(6, parseFloat(f[7]) || 10);
+        let sy = Math.max(6, parseFloat(f[8]) || 10);
+        let sz = Math.max(6, parseFloat(f[9]) || 10);
+        let cyl = (f.length > 10) ? parseInt(f[10]) : 0;
+        let lyr = (f.length > 11) ? parseFloat(f[11]) : 0;
+        let hrd = (mat.includes('2379') || mat.includes('FORMVAR')) ? '58-60 HRC' : '-';
+        let col = '#38bdf8';
+        let uName = name.toUpperCase();
+        if (uName.includes('ALT') || uName.includes('UST') || uName.includes('PLAKA')) col = '#94a3b8';
+        else if (mat.includes('2379') || mat.includes('FORMVAR')) col = '#f43f5e';
+        else if (mat.includes('2714')) col = '#f59e0b';
+        else if (cyl === 1) col = '#a855f7';
+        loaded.push({
+          id: idx + 1,
+          name: name,
+          mat: mat,
+          hrd: hrd,
+          rawKg: rawKg,
+          netKg: netKg,
+          dim: Math.round(sx) + 'x' + Math.round(sy) + 'x' + Math.round(sz),
+          cx: cx, cy: cy, cz: cz,
+          sx: sx, sy: sy, sz: sz,
+          cyl: cyl,
+          lyr: lyr,
+          col: col
+        });
+      }
+    });
+    return loaded.length > 0 ? loaded : DEFAULT_DEMO_PARTS;
+  } catch(e) {
+    console.error(e);
+    return DEFAULT_DEMO_PARTS;
+  }
+}
+
+const PARTS = loadPartsFromUrlHash();
+const canvas = document.getElementById('c3d'); const ctx = canvas.getContext('2d');
+let rotX = -0.65, rotZ = 0.65, zoom = 1.0, panX = 0, panY = 0, explodePct = 0, selectedId = -1, xrayMode = true, wireMode = true, assemblyStep = 0;
+let minX=1e9,maxX=-1e9,minY=1e9,maxY=-1e9,minZ=1e9,maxZ=-1e9;
+PARTS.forEach(p=>{minX=Math.min(minX,p.cx-p.sx/2);maxX=Math.max(maxX,p.cx+p.sx/2);minY=Math.min(minY,p.cy-p.sy/2);maxY=Math.max(maxY,p.cy+p.sy/2);minZ=Math.min(minZ,p.cz-p.sz/2);maxZ=Math.max(maxZ,p.cz+p.sz/2);});
+const midX=(minX+maxX)/2, midY=(minY+maxY)/2, midZ=(minZ+maxZ)/2, span=Math.max(maxX-minX,maxY-minY,maxZ-minZ,200);
+const sortedForAssy = [...PARTS].sort((a,b)=>(a.cz - b.cz));
+function resize(){canvas.width=canvas.parentElement.clientWidth*window.devicePixelRatio;canvas.height=canvas.parentElement.clientHeight*window.devicePixelRatio;draw();}
+window.addEventListener('resize',resize);
+function proj(x,y,z){
+  let dx=x-midX, dy=y-midY, dz=z-midZ;
+  let cz=Math.cos(rotZ), sz=Math.sin(rotZ), cx=Math.cos(rotX), sx=Math.sin(rotX);
+  let x1 = dx*cz - dy*sz, y1 = dx*sz + dy*cz;
+  let y2 = y1*cx - dz*sx, z2 = y1*sx + dz*cx;
+  let s = (Math.min(canvas.width,canvas.height)*0.68 / span) * zoom;
+  return {x: canvas.width*0.5 + panX + x1*s, y: canvas.height*0.52 + panY - z2*s, depth: y2};
+}
+function getBoxVerts(p){
+  let zOff = p.lyr * (explodePct * 1.65);
+  let hx=p.sx/2, hy=p.sy/2, hz=p.sz/2, cx=p.cx, cy=p.cy, cz=p.cz+zOff;
+  if(p.cyl===1){
+    let ptsTop=[], ptsBot=[], n=12;
+    for(let i=0;i<n;i++){let a=i*Math.PI*2/n; ptsBot.push(proj(cx+hx*Math.cos(a),cy+hy*Math.sin(a),cz-hz)); ptsTop.push(proj(cx+hx*Math.cos(a),cy+hy*Math.sin(a),cz+hz));}
+    return {isCyl:true, bot:ptsBot, top:ptsTop, center:proj(cx,cy,cz)};
+  }
+  return {isCyl:false, center:proj(cx,cy,cz), v:[
+    proj(cx-hx,cy-hy,cz-hz), proj(cx+hx,cy-hy,cz-hz), proj(cx+hx,cy+hy,cz-hz), proj(cx-hx,cy+hy,cz-hz),
+    proj(cx-hx,cy-hy,cz+hz), proj(cx+hx,cy-hy,cz+hz), proj(cx+hx,cy+hy,cz+hz), proj(cx-hx,cy+hy,cz+hz)]};
+}
+const FACES = [[0,1,2,3],[4,5,6,7],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7]];
+let screenCenters = [];
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height); screenCenters=[];
+  let activeParts = assemblyStep>0 ? sortedForAssy.slice(0,assemblyStep) : PARTS;
+  let renderList = activeParts.map(p=>{let g=getBoxVerts(p); return {p,g,d:g.center.depth};}).sort((a,b)=>b.d-a.d);
+  renderList.forEach(item=>{
+    let p=item.p, g=item.g, isSel=(p.id===selectedId);
+    screenCenters.push({id:p.id, x:g.center.x, y:g.center.y});
+    let alpha = (selectedId===-1) ? 0.86 : (isSel ? 0.98 : (xrayMode ? 0.14 : 0.45));
+    ctx.fillStyle = isSel ? '#facc15' : p.col; ctx.globalAlpha = alpha;
+    ctx.strokeStyle = isSel ? '#fef08a' : (wireMode ? '#0f172a' : p.col);
+    ctx.lineWidth = (isSel ? 2.6 : 1.1) * window.devicePixelRatio;
+    if(g.isCyl){
+      for(let i=0;i<g.bot.length;i++){let ni=(i+1)%g.bot.length; ctx.beginPath(); ctx.moveTo(g.bot[i].x,g.bot[i].y); ctx.lineTo(g.bot[ni].x,g.bot[ni].y); ctx.lineTo(g.top[ni].x,g.top[ni].y); ctx.lineTo(g.top[i].x,g.top[i].y); ctx.closePath(); ctx.fill(); if(wireMode||isSel)ctx.stroke();}
+      ctx.beginPath(); g.top.forEach((pt,idx)=>idx===0?ctx.moveTo(pt.x,pt.y):ctx.lineTo(pt.x,pt.y)); ctx.closePath(); ctx.fill(); ctx.stroke();
+    } else {
+      let facesSorted = FACES.map(f=>({f, z:(g.v[f[0]].depth+g.v[f[1]].depth+g.v[f[2]].depth+g.v[f[3]].depth)*0.25})).sort((a,b)=>b.z-a.z);
+      facesSorted.forEach(fo=>{let f=fo.f; ctx.beginPath(); ctx.moveTo(g.v[f[0]].x,g.v[f[0]].y); ctx.lineTo(g.v[f[1]].x,g.v[f[1]].y); ctx.lineTo(g.v[f[2]].x,g.v[f[2]].y); ctx.lineTo(g.v[f[3]].x,g.v[f[3]].y); ctx.closePath(); ctx.fill(); if(wireMode||isSel)ctx.stroke();});
+    }
+    if(isSel){ctx.globalAlpha=1; ctx.fillStyle='#facc15'; ctx.font='bold '+(11*window.devicePixelRatio)+'px Segoe UI'; ctx.fillText('▶ '+p.name, g.center.x+8, g.center.y-8);}
+  }); ctx.globalAlpha=1;
+}
+function selectPart(id){
+  selectedId = (selectedId===id) ? -1 : id;
+  document.querySelectorAll('.p-item').forEach(el=>el.classList.toggle('sel', parseInt(el.dataset.id)===selectedId));
+  let p = PARTS.find(x=>x.id===selectedId);
+  if(p){document.getElementById('hudName').innerText = p.name + '  [' + p.mat + (p.hrd!=='-'?' • '+p.hrd:'') + ']'; document.getElementById('hudMeta').innerText = 'Ölçü: ' + p.dim + ' mm  |  Brüt: ' + p.rawKg + ' kg  |  Net: ' + p.netKg + ' kg';}
+  else{document.getElementById('hudName').innerText = 'KALIP GENEL GÖRÜNÜMÜ ('+PARTS.length+' Parça)'; document.getElementById('hudMeta').innerText = 'Parçaya veya listeye dokunarak 3B röntgen modunda inceleyin.';}
+  draw();
+}
+const listEl = document.getElementById('partList');
+PARTS.forEach(p=>{let d=document.createElement('div'); d.className='p-item'; d.dataset.id=p.id; d.innerHTML=`<span><b>${p.name}</b> <small style='color:#94a3b8'>(${p.dim})</small></span><span class='p-badge'>${p.mat} • ${p.netKg}kg</span>`; d.onclick=()=>selectPart(p.id); listEl.appendChild(d);});
+document.getElementById('expSlider').oninput=e=>{explodePct=parseInt(e.target.value); document.getElementById('expVal').innerText=explodePct+'%'; draw();};
+function toggleXray(){xrayMode=!xrayMode; document.getElementById('btnXray').innerText='🔦 Röntgen: '+(xrayMode?'AÇIK':'KAPALI'); draw();}
+function toggleWire(){wireMode=!wireMode; document.getElementById('btnWire').innerText='📐 Çizgisel: '+(wireMode?'AÇIK':'KAPALI'); draw();}
+function stepAssembly(dir){if(assemblyStep===0)assemblyStep=dir>0?1:sortedForAssy.length; else assemblyStep=Math.max(0,Math.min(sortedForAssy.length,assemblyStep+dir)); document.getElementById('stepCounter').innerText=assemblyStep===0?'Tüm Kalıp':'Montaj Adımı: '+assemblyStep+'/'+sortedForAssy.length; if(assemblyStep>0)selectPart(sortedForAssy[assemblyStep-1].id); else selectPart(-1);}
+function resetView(){rotX=-0.65;rotZ=0.65;zoom=1.0;panX=0;panY=0;explodePct=0;assemblyStep=0;selectedId=-1;document.getElementById('expSlider').value=0;document.getElementById('expVal').innerText='0%';document.getElementById('stepCounter').innerText='Tüm Kalıp';selectPart(-1);draw();}
+let isDrag=false, lx=0, ly=0, moveDist=0;
+canvas.addEventListener('pointerdown',e=>{isDrag=true;lx=e.clientX;ly=e.clientY;moveDist=0;canvas.setPointerCapture(e.pointerId);});
+canvas.addEventListener('pointermove',e=>{if(!isDrag)return; let dx=e.clientX-lx, dy=e.clientY-ly; moveDist+=Math.abs(dx)+Math.abs(dy); rotZ+=dx*0.01; rotX=Math.max(-1.5,Math.min(0.2,rotX+dy*0.01)); lx=e.clientX; ly=e.clientY; draw();});
+canvas.addEventListener('pointerup',e=>{isDrag=false; if(moveDist<8){let r=canvas.getBoundingClientRect(); let px=(e.clientX-r.left)*window.devicePixelRatio, py=(e.clientY-r.top)*window.devicePixelRatio; let best=-1,minD=45*window.devicePixelRatio; screenCenters.forEach(sc=>{let d=Math.hypot(sc.x-px,sc.y-py); if(d<minD){minD=d;best=sc.id;}}); if(best!==-1)selectPart(best);}});
+canvas.addEventListener('wheel',e=>{e.preventDefault(); zoom=Math.max(0.4,Math.min(3.5,zoom*(e.deltaY<0?1.1:0.9))); draw();},{passive:false});
+setTimeout(resize,50);
+</script>
+</body>
+</html>
