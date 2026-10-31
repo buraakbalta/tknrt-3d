@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang='tr'>
+<head>
+<meta charset='UTF-8'>
+<meta name='viewport' content='width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no'>
+<title>Teknorot Kalıphane 3B Montaj & Parça Kılavuzu</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;-webkit-tap-highlight-color:transparent;}
+body{background:#f1f5f9;color:#0f172a;display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+header{background:#0f172a;color:#fff;padding:10px 14px;border-bottom:4px solid #16a34a;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,0.15);z-index:10;}
+.brand{display:flex;align-items:center;gap:10px;}
+.logo-dot{width:18px;height:18px;border-radius:50%;background:#22c55e;border:3px solid #fff;}
+.h-title{font-size:15px;font-weight:900;letter-spacing:0.3px;color:#fff;}
+.h-sub{font-size:12px;color:#94a3b8;font-weight:700;}
+.step-pill{background:#16a34a;color:#fff;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:800;}
+#infoBanner{background:#ffffff;border-bottom:2px solid #cbd5e1;padding:10px 14px;display:flex;flex-direction:column;gap:4px;box-shadow:0 2px 6px rgba(0,0,0,0.05);z-index:9;}
+#partTitle{font-size:17px;font-weight:900;color:#0f172a;}
+.meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:2px;}
+.meta-box{background:#f8fafc;border:1px solid #cbd5e1;border-left:4px solid #0284c7;border-radius:6px;padding:5px 8px;}
+.meta-lbl{font-size:10px;font-weight:800;color:#64748b;text-transform:uppercase;}
+.meta-val{font-size:13px;font-weight:900;color:#0f172a;margin-top:1px;}
+#mountGuide{background:#fef9c3;border:1px solid #facc15;color:#854d0e;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:800;margin-top:2px;}
+#viewport{position:relative;flex:1;background:linear-gradient(180deg,#e2e8f0 0%,#cbd5e1 100%);touch-action:none;overflow:hidden;}
+canvas{width:100%;height:100%;display:block;cursor:grab;}canvas:active{cursor:grabbing;}
+.ctrl-panel{background:#ffffff;padding:8px 10px;border-top:2px solid #cbd5e1;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+.big-btn{background:#1e293b;color:#fff;border:none;border-radius:8px;padding:10px 6px;font-size:12px;font-weight:800;cursor:pointer;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,0.12);transition:transform 0.1s;}
+.big-btn:active{transform:scale(0.97);}
+.btn-blue{background:#0284c7;}.btn-orange{background:#ea580c;}.btn-green{background:#16a34a;}.btn-purple{background:#7c3aed;}
+#partList{height:165px;overflow-y:auto;background:#ffffff;border-top:2px solid #94a3b8;}
+.p-row{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;cursor:pointer;}
+.p-row:hover,.p-row.sel{background:#dbeafe;border-left:6px solid #0284c7;}
+.p-tag{padding:3px 8px;border-radius:6px;font-size:11px;font-weight:800;background:#e2e8f0;color:#1e293b;}
+</style>
+</head>
+<body>
+<header>
+  <div class='brand'>
+    <div class='logo-dot'></div>
+    <div>
+      <div class='h-title' id='hdrMoldTitle'>TEKNOROT 3B KALIP KILAVUZU</div>
+      <div class='h-sub'>Parmağınızla Kalıbı Çevirin • Parçaya Dokunun</div>
+    </div>
+  </div>
+  <div class='step-pill' id='stepBadge'>TÜM KALIP</div>
+</header>
+<div id='infoBanner'>
+  <div id='partTitle'>KALIP GENEL GÖRÜNÜMÜ (Aşağıdan Parça Seçin veya 3B Modele Dokunun)</div>
+  <div class='meta-grid'>
+    <div class='meta-box'><div class='meta-lbl'>MALZEME & SERTLİK</div><div class='meta-val' id='mMat'>Tüm Çelikler</div></div>
+    <div class='meta-box' style='border-left-color:#16a34a'><div class='meta-lbl'>BİTMİŞ ÖLÇÜ (MM)</div><div class='meta-val' id='mDim'>Tam Montaj</div></div>
+    <div class='meta-box' style='border-left-color:#ea580c'><div class='meta-lbl'>NET (VİNÇ) AĞIRLIĞI</div><div class='meta-val' id='mKg'>- KG</div></div>
+  </div>
+  <div id='mountGuide'>💡 İPUCU: Kalıbı katmanlarına ayırmak için aşağıdaki turuncu [KALIBI AÇ / PATLAT] tuşuna basın.</div>
+</div>
+<div id='viewport'><canvas id='c3d'></canvas></div>
+<div class='ctrl-panel'>
+  <button class='big-btn btn-blue' onclick='resetView()'>🔄 TÜM KALIBI GÖSTER</button>
+  <button class='big-btn btn-orange' id='btnExplode' onclick='toggleExplode()'>💥 KALIBI AÇ (PATLAT)</button>
+  <button class='big-btn btn-purple' id='btnIsolate' onclick='toggleIsolate()'>🔍 SADECE SEÇİLİYİ GÖSTER</button>
+  <button class='big-btn btn-green' onclick='stepAssembly(1)'>▶️ MONTAJ ADIMI İLERLE</button>
+</div>
+<div id='partList'></div>
+<script>
+// Varsayilan Ornek Kalip Verisi (ONFORM-RL Gercek Ebat ve Konumlariyla):
+let PARTS = [
+  {id:1,name:"01-ALT PLAKA",mat:"1.1040",hrd:"-",rawKg:593.5,netKg:334.8,dim:"96x836x896",note:"1. Adım: Alt Plakayı pres tablasına bağlayın.",cx:0,cy:0,cz:48,sx:896,sy:836,sz:96,cyl:0,lyr:-2.2,col:"#64748b",shX:0,shY:0,shZ:0,mesh:[],ch:{poly:[],holes:[]}},
+  {id:2,name:"02-ÜST PLAKA",mat:"1.1040",hrd:"-",rawKg:237.4,netKg:202.8,dim:"36x836x896",note:"Son Adım: Üst Plakayı üst gruba M16 cıvata ve H7 pimlerle kapatın.",cx:0,cy:0,cz:319,sx:896,sy:836,sz:36,cyl:0,lyr:2.4,col:"#64748b",shX:0,shY:0,shZ:0,mesh:[],ch:{poly:[],holes:[]}},
+  {id:3,name:"03-FORM ERKEK DESTEK-1",mat:"1.1040",hrd:"-",rawKg:88.1,netKg:71.7,dim:"106x196x497",note:"Üst Plaka altına -Z yönünde (Kafa Üst Plakada) bağlanır.",cx:-195,cy:0,cz:248,sx:196,sy:497,sz:106,cyl:0,lyr:1.4,col:"#0284c7",shX:0,shY:0,shZ:0,mesh:[],ch:{poly:[],holes:[]}},
+  {id:4,name:"04-FORM ERKEK DESTEK-2",mat:"1.1040",hrd:"-",rawKg:88.1,netKg:71.5,dim:"106x196x497",note:"Üst Plaka altına -Z yönünde (Kafa Üst Plakada) bağlanır.",cx:195,cy:0,cz:248,sx:196,sy:497,sz:106,cyl:0,lyr:1.4,col:"#0284c7",shX:0,shY:0,shZ:0,mesh:[],ch:{poly:[],holes:[]}},
+  {id:5,name:"05-ÇIKARICI-1",mat:"1.2714",hrd:"-",rawKg:170.5,netKg:66.2,dim:"97x411x465",note:"Pot / Çıkarıcı Destek üzerine +Z yönünde sabitlenir.",cx:-195,cy:0,cz:145,sx:360,sy:465,sz:97,cyl:0,lyr:-0.3,col:"#d97706",shX:0,shY:0,shZ:0,mesh:[],ch:{poly:[],holes:[]}},
+  {id:6,name:"06-ÇIKARICI-2",mat:"1.2714",hrd:"-",rawKg:170.5,netKg:65.9,dim:"97x411x465",note:"Pot / Çıkarıcı Destek üzerine +Z yönünde sabitlenir.",cx:195,cy:0,cz:145,sx:360,sy:465,sz:97,cyl:0,lyr:-0.3,col:"#d97706",shX:0,shY:0,shZ:0,mesh:[],ch:{poly:[],holes:[]}},
+  {id:7,name:"07-FORM ERKEK-1",mat:"1.2379",hrd:"58-60 HRC",rawKg:148.8,netKg:52.6,dim:"87x416x455",note:"Üstündeki Destek parçasından -Z yönünde M16 cıvata ve Ø12 H7 pimle bağlanır.",cx:-195,cy:0,cz:195,sx:340,sy:455,sz:87,cyl:0,lyr:0.7,col:"#e11d48",shX:0,shY:0,shZ:0,mesh:[],ch:{poly:[],holes:[]}},
+  {id:8,name:"08-FORM ERKEK-2",mat:"1.2379",hrd:"58-60 HRC",rawKg:148.8,netKg:52.6,dim:"87x416x455",note:"Üstündeki Destek parçasından -Z yönünde M16 cıvata ve Ø12 H7 pimle bağlanır.",cx:195,cy:0,cz:195,sx:340,sy:455,sz:87,cyl:0,lyr:0.7,col:"#e11d48",shX:0,shY:0,shZ:0,mesh:[],ch:{poly:[],holes:[]}},
+  {id:9,name:"09-DİŞİ-1",mat:"1.2379",hrd:"58-60 HRC",rawKg:25.0,netKg:8.2,dim:"87x125x237",note:"Alt Plaka yuvasına (0.10 mm boşlukla) oturtulur, alttan +Z bağlanır.",cx:-290,cy:0,cz:115,sx:125,sy:237,sz:87,cyl:0,lyr:-1.0,col:"#e11d48",shX:0,shY:0,shZ:0,mesh:[],ch:{poly:[],holes:[]}},
+  {id:10,name:"10-DİŞİ-2",mat:"1.2379",hrd:"58-60 HRC",rawKg:25.0,netKg:8.2,dim:"87x125x237",note:"Alt Plaka yuvasına (0.10 mm boşlukla) oturtulur, alttan +Z bağlanır.",cx:290,cy:0,cz:115,sx:125,sy:237,sz:87,cyl:0,lyr:-1.0,col:"#e11d48",shX:0,shY:0,shZ:0,mesh:[],ch:{poly:[],holes:[]}},
+  {id:11,name:"11-BURÇ YÜKSELTME-1",mat:"1.1040",hrd:"-",rawKg:14.1,netKg:13.0,dim:"Ø80x61",note:"Üst Plaka altına -Z yönünde 4x M10 cıvata ve 2x Ø8 H7 pimle bağlanır.",cx:-365,cy:-335,cz:270,sx:80,sy:80,sz:61,cyl:1,lyr:1.4,col:"#7c3aed",shX:0,shY:0,shZ:0,mesh:[],ch:{poly:[],holes:[]}},
+  {id:12,name:"12-BURÇ YÜKSELTME-2",mat:"1.1040",hrd:"-",rawKg:14.1,netKg:13.0,dim:"Ø80x61",note:"Üst Plaka altına -Z yönünde 4x M10 cıvata ve 2x Ø8 H7 pimle bağlanır.",cx:365,cy:-335,cz:270,sx:80,sy:80,sz:61,cyl:1,lyr:1.4,col:"#7c3aed",shX:0,shY:0,shZ:0,mesh:[],ch:{poly:[],holes:[]}},
+  {id:13,name:"13-BURÇ YÜKSELTME-3",mat:"1.1040",hrd:"-",rawKg:14.1,netKg:13.0,dim:"Ø80x61",note:"Üst Plaka altına -Z yönünde 4x M10 cıvata ve 2x Ø8 H7 pimle bağlanır.",cx:365,cy:335,cz:270,sx:80,sy:80,sz:61,cyl:1,lyr:1.4,col:"#7c3aed",shX:0,shY:0,shZ:0,mesh:[],ch:{poly:[],holes:[]}},
+  {id:14,name:"14-BURÇ YÜKSELTME-4",mat:"1.1040",hrd:"-",rawKg:14.1,netKg:13.0,dim:"Ø80x61",note:"Üst Plaka altına -Z yönünde 4x M10 cıvata ve 2x Ø8 H7 pimle bağlanır.",cx:-365,cy:335,cz:270,sx:80,sy:80,sz:61,cyl:1,lyr:1.4,col:"#7c3aed",shX:0,shY:0,shZ:0,mesh:[],ch:{poly:[],holes:[]}}
+];
+
+// Eger URL #hash icinde QR koddan gelen canli kalip verisi varsa onu coz ve yukle:
+(function parseQrHash(){
+  if(!window.location.hash || window.location.hash.length < 5) return;
+  try {
+    const hStr = window.location.hash.substring(1);
+    const params = new URLSearchParams(hStr);
+    const pTitle = params.get('P');
+    if(pTitle) document.getElementById('hdrMoldTitle').innerText = 'KALIP: ' + decodeURIComponent(pTitle);
+    const dRaw = params.get('D');
+    if(dRaw){
+      const rows = decodeURIComponent(dRaw).split(/[;|]/);
+      const parsed = [];
+      rows.forEach((r, idx) => {
+        const c = r.split(',');
+        if(c.length >= 11){
+          const isTwelve = (c.length >= 12);
+          const nm = (idx+1).toString().padStart(2,'0') + '-' + c[0].replace(/_/g,' ');
+          const mat = c[1].indexOf('.')>=0 ? c[1] : (c[1]==='STD'?'STANDART':'1.'+c[1]);
+          const netKg = parseFloat(isTwelve ? c[3] : c[2]) || 0;
+          const rawKg = isTwelve ? (parseFloat(c[2])||netKg) : Math.round(netKg*1.35*10)/10;
+          const off = isTwelve ? 1 : 0;
+          const cx = parseFloat(c[3+off])||0, cy = parseFloat(c[4+off])||0, cz = parseFloat(c[5+off])||0;
+          const sx = Math.max(6,parseFloat(c[6+off])||50), sy = Math.max(6,parseFloat(c[7+off])||50), sz = Math.max(6,parseFloat(c[8+off])||20);
+          const cyl = parseInt(c[9+off])||0, lyr = parseFloat(c[10+off])||0;
+          let col = '#0284c7';
+          if(nm.includes('PLAKA') && !nm.includes('DST') && !nm.includes('DESTEK')) col='#64748b';
+          else if(mat.includes('2379')) col='#e11d48';
+          else if(mat.includes('2714')) col='#d97706';
+          else if(cyl===1) col='#7c3aed';
+          let note = 'Kalıp gövdesine cıvata ve H7 pimlerle sabitlenir.';
+          if(lyr < -1.8) note = '1. Adım: Alt Plakayı pres tablasına bağlayın.';
+          else if(lyr > 1.8) note = 'Son Adım: Üst Plakayı üst gruba cıvata ve pimlerle kapatın.';
+          else if(lyr > 0) note = 'Üst gruptan -Z yönünde imbus cıvata ve H7 pimle bağlanır.';
+          else note = 'Alt Plaka / Destek üzerine +Z yönünde sabitlenir.';
+          parsed.push({id:idx+1, name:nm, mat:mat, hrd:mat.includes('2379')?'58-60 HRC':'-', rawKg:rawKg, netKg:netKg, dim:Math.round(sz)+'x'+Math.round(sx)+'x'+Math.round(sy), note:note, cx, cy, cz, sx, sy, sz, cyl, lyr, col, shX:0, shY:0, shZ:0, mesh:[], ch:{poly:[],holes:[]}});
+        }
+      });
+      if(parsed.length > 0) PARTS = parsed;
+    }
+  } catch(e){}
+})();
+
+const canvas = document.getElementById('c3d'); const ctx = canvas.getContext('2d');
+let rotX = -0.62, rotZ = 0.68, zoom = 1.0, panX = 0, panY = 0, explodePct = 0, selectedId = -1, isolateOnly = false, assemblyStep = 0;
+let minX=1e9,maxX=-1e9,minY=1e9,maxY=-1e9,minZ=1e9,maxZ=-1e9, totalNetKg=0;
+PARTS.forEach(p=>{minX=Math.min(minX,p.cx-p.sx/2);maxX=Math.max(maxX,p.cx+p.sx/2);minY=Math.min(minY,p.cy-p.sy/2);maxY=Math.max(maxY,p.cy+p.sy/2);minZ=Math.min(minZ,p.cz-p.sz/2);maxZ=Math.max(maxZ,p.cz+p.sz/2); totalNetKg+=p.netKg;});
+document.getElementById('mKg').innerText = Math.round(totalNetKg) + ' KG (Toplam)';
+const midX=(minX+maxX)/2, midY=(minY+maxY)/2, midZ=(minZ+maxZ)/2, span=Math.max(maxX-minX,maxY-minY,maxZ-minZ,200);
+const sortedForAssy = [...PARTS].sort((a,b)=>(a.cz - b.cz));
+function resize(){canvas.width=canvas.parentElement.clientWidth*window.devicePixelRatio;canvas.height=canvas.parentElement.clientHeight*window.devicePixelRatio;draw();}
+window.addEventListener('resize',resize);
+function proj(x,y,z){
+  let dx=x-midX, dy=y-midY, dz=z-midZ;
+  let cz=Math.cos(rotZ), sz=Math.sin(rotZ), cx=Math.cos(rotX), sx=Math.sin(rotX);
+  let x1 = dx*cz - dy*sz, y1 = dx*sz + dy*cz;
+  let y2 = y1*cx - dz*sx, z2 = y1*sx + dz*cx;
+  let s = (Math.min(canvas.width,canvas.height)*0.68 / span) * zoom;
+  return {x: canvas.width*0.5 + panX + x1*s, y: canvas.height*0.52 + panY - z2*s, depth: y2};
+}
+function shadeColor(hex, lum) {
+  hex = String(hex).replace(/[^0-9a-f]/gi, '');
+  if (hex.length < 6) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+  let rgb = '#', c, i;
+  for (i = 0; i < 3; i++) { c = parseInt(hex.substr(i*2,2), 16); c = Math.round(Math.min(Math.max(0, c + (c * lum)), 255)).toString(16); rgb += ('00'+c).substr(c.length); }
+  return rgb;
+}
+function buildPartFaces3D(p, zOff){
+  let faces = [];
+  if(p.mesh && p.mesh.length > 12){
+    let sx=p.shX||0, sy=p.shY||0, sz=p.shZ||0;
+    p.mesh.forEach(t=>{
+      let v0=proj(t[0]-sx, t[1]-sy, t[2]-sz+zOff), v1=proj(t[3]-sx, t[4]-sy, t[5]-sz+zOff), v2=proj(t[6]-sx, t[7]-sy, t[8]-sz+zOff);
+      let ux=t[3]-t[0], uy=t[4]-t[1], uz=t[5]-t[2], vx=t[6]-t[0], vy=t[7]-t[1], vz=t[8]-t[2];
+      let nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx; let nl=Math.hypot(nx,ny,nz)||1; nx/=nl; ny/=nl; nz/=nl;
+      let lum = (nx*0.35 - ny*0.45 + Math.abs(nz)*0.55) * 0.28;
+      faces.push({pts:[v0,v1,v2], depth:(v0.depth+v1.depth+v2.depth)/3, lum:lum, isHole:false});
+    });
+    return faces;
+  }
+  let hx=p.sx/2, hy=p.sy/2, hz=p.sz/2, cx=p.cx, cy=p.cy, cz=p.cz+zOff;
+  let ringBot=[], ringTop=[];
+  if(p.cyl===1){
+    let n=18; for(let i=0;i<n;i++){let a=i*Math.PI*2/n; ringBot.push([cx+hx*Math.cos(a),cy+hy*Math.sin(a),cz-hz]); ringTop.push([cx+hx*Math.cos(a),cy+hy*Math.sin(a),cz+hz]);}
+  } else {
+    let ch = Math.min(hx, hy) * 0.12;
+    let poly2d = [[-hx+ch,-hy],[hx-ch,-hy],[hx,-hy+ch],[hx,hy-ch],[hx-ch,hy],[-hx+ch,hy],[-hx,hy-ch],[-hx,-hy+ch]];
+    poly2d.forEach(pt=>{ringBot.push([cx+pt[0],cy+pt[1],cz-hz]); ringTop.push([cx+pt[0],cy+pt[1],cz+hz]);});
+  }
+  for(let i=0;i<ringBot.length;i++){
+    let ni=(i+1)%ringBot.length;
+    let p0=proj(...ringBot[i]), p1=proj(...ringBot[ni]), p2=proj(...ringTop[ni]), p3=proj(...ringTop[i]);
+    let lum = (i%2===0) ? -0.12 : -0.22;
+    faces.push({pts:[p0,p1,p2,p3], depth:(p0.depth+p1.depth+p2.depth+p3.depth)*0.25, lum:lum, isHole:false});
+  }
+  let topProj = ringTop.map(pt=>proj(...pt));
+  let topD = topProj.reduce((s,x)=>s+x.depth,0)/topProj.length;
+  faces.push({pts:topProj, depth:topD-0.5, lum:0.16, isHole:false});
+  let holes = [];
+  if(p.cyl===1 && p.sx>45){ holes.push([cx,cy,hx*0.42]); }
+  else if(!p.cyl && p.sx>60 && p.sy>40){
+    let mx=hx*0.72, my=hy*0.68, hd=Math.min(11, Math.max(5, Math.min(hx,hy)*0.12));
+    holes.push([cx-mx,cy-my,hd],[cx+mx,cy-my,hd],[cx+mx,cy+my,hd],[cx-mx,cy+my,hd]);
+  }
+  holes.forEach(h=>{
+    let hPts=[]; for(let k=0;k<10;k++){let a=k*Math.PI*2/10; hPts.push(proj(h[0]+h[2]*Math.cos(a), h[1]+h[2]*Math.sin(a), cz+hz+0.4));}
+    faces.push({pts:hPts, depth:topD-1.5, lum:-0.48, isHole:true});
+  });
+  return faces;
+}
+let screenCenters = [];
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height); screenCenters=[];
+  let activeParts = assemblyStep>0 ? sortedForAssy.slice(0,assemblyStep) : PARTS;
+  if(isolateOnly && selectedId!==-1){ activeParts = PARTS.filter(x=>x.id===selectedId); }
+  let renderList = activeParts.map(p=>{
+    let zOff = p.lyr * (explodePct * 1.65);
+    let cProj = proj(p.cx, p.cy, p.cz+zOff);
+    return {p, zOff, center:cProj, d:cProj.depth};
+  }).sort((a,b)=>b.d-a.d);
+  renderList.forEach(item=>{
+    let p=item.p, isSel=(p.id===selectedId);
+    screenCenters.push({id:p.id, x:item.center.x, y:item.center.y});
+    let alpha = (selectedId===-1 || isolateOnly) ? 0.96 : (isSel ? 1.0 : 0.18);
+    let baseCol = isSel ? '#facc15' : p.col;
+    let faces = buildPartFaces3D(p, item.zOff).sort((a,b)=>b.depth-a.depth);
+    ctx.globalAlpha = alpha;
+    faces.forEach(f=>{
+      ctx.beginPath();
+      f.pts.forEach((pt,idx)=>idx===0?ctx.moveTo(pt.x,pt.y):ctx.lineTo(pt.x,pt.y));
+      ctx.closePath();
+      ctx.fillStyle = f.isHole ? '#1e293b' : shadeColor(baseCol, f.lum);
+      ctx.fill();
+      ctx.strokeStyle = isSel ? '#854d0e' : 'rgba(15,23,42,0.45)';
+      ctx.lineWidth = (isSel ? 1.8 : 0.8) * window.devicePixelRatio;
+      ctx.stroke();
+    });
+    if(isSel){
+      ctx.globalAlpha=1; ctx.fillStyle='#0f172a'; ctx.font='900 '+(13*window.devicePixelRatio)+'px Segoe UI';
+      ctx.fillText('📍 '+p.name, item.center.x+10, item.center.y-10);
+    }
+  }); ctx.globalAlpha=1;
+}
+function selectPart(id){
+  selectedId = (selectedId===id) ? -1 : id;
+  if(selectedId===-1) isolateOnly = false;
+  document.getElementById('btnIsolate').innerText = isolateOnly ? '🔍 TÜM KALIBI GÖSTER' : '🔍 SADECE SEÇİLİYİ GÖSTER';
+  document.querySelectorAll('.p-row').forEach(el=>el.classList.toggle('sel', parseInt(el.dataset.id)===selectedId));
+  let p = PARTS.find(x=>x.id===selectedId);
+  if(p){
+    document.getElementById('partTitle').innerText = 'SEÇİLİ PARÇA: ' + p.name;
+    document.getElementById('mMat').innerText = p.mat + (p.hrd && p.hrd!=='-' ? ' ('+p.hrd+')' : '');
+    document.getElementById('mDim').innerText = p.dim + ' mm';
+    document.getElementById('mKg').innerText = p.netKg + ' kg (Brüt: ' + p.rawKg + ' kg)';
+    document.getElementById('mountGuide').innerText = '🔧 MONTAJ TALİMATI: ' + (p.note || 'Standart cıvata ve H7 pimlerle sabitlenir.');
+  } else {
+    document.getElementById('partTitle').innerText = 'KALIP GENEL GÖRÜNÜMÜ ('+PARTS.length+' Parça)';
+    document.getElementById('mMat').innerText = 'Tüm Çelikler';
+    document.getElementById('mDim').innerText = 'Tam Montaj';
+    document.getElementById('mKg').innerText = Math.round(totalNetKg) + ' KG (Toplam)';
+    document.getElementById('mountGuide').innerText = '💡 İPUCU: Listeden bir parçaya dokunun veya [KALIBI AÇ] tuşuna basın.';
+  }
+  draw();
+}
+const listEl = document.getElementById('partList');
+PARTS.forEach(p=>{let d=document.createElement('div'); d.className='p-row'; d.dataset.id=p.id; d.innerHTML=`<span>${p.name} <small style='color:#64748b'>(${p.dim} mm)</small></span><span class='p-tag'>${p.mat} • ${p.netKg} kg</span>`; d.onclick=()=>selectPart(p.id); listEl.appendChild(d);});
+function toggleExplode(){
+  explodePct = (explodePct === 0) ? 55 : (explodePct === 55 ? 100 : 0);
+  document.getElementById('btnExplode').innerText = explodePct===0 ? '💥 KALIBI AÇ (PATLAT)' : (explodePct===55 ? '💥 TAM AÇ (%100)' : '💥 KALIBI KAPAT');
+  draw();
+}
+function toggleIsolate(){
+  if(selectedId===-1 && PARTS.length>0) selectedId = PARTS[0].id;
+  isolateOnly = !isolateOnly;
+  document.getElementById('btnIsolate').innerText = isolateOnly ? '🔍 TÜM KALIBI GÖSTER' : '🔍 SADECE SEÇİLİYİ GÖSTER';
+  draw();
+}
+function stepAssembly(dir){
+  isolateOnly = false;
+  assemblyStep = (assemblyStep >= sortedForAssy.length) ? 0 : assemblyStep + 1;
+  document.getElementById('stepBadge').innerText = assemblyStep===0 ? 'TÜM KALIP' : 'ADIM ' + assemblyStep + ' / ' + sortedForAssy.length;
+  if(assemblyStep>0) selectPart(sortedForAssy[assemblyStep-1].id); else selectPart(-1);
+}
+function resetView(){rotX=-0.62;rotZ=0.68;zoom=1.0;panX=0;panY=0;explodePct=0;assemblyStep=0;isolateOnly=false;selectedId=-1;document.getElementById('btnExplode').innerText='💥 KALIBI AÇ (PATLAT)';document.getElementById('stepBadge').innerText='TÜM KALIP';selectPart(-1);draw();}
+let isDrag=false, lx=0, ly=0, moveDist=0;
+canvas.addEventListener('pointerdown',e=>{isDrag=true;lx=e.clientX;ly=e.clientY;moveDist=0;canvas.setPointerCapture(e.pointerId);});
+canvas.addEventListener('pointermove',e=>{if(!isDrag)return; let dx=e.clientX-lx, dy=e.clientY-ly; moveDist+=Math.abs(dx)+Math.abs(dy); rotZ+=dx*0.01; rotX=Math.max(-1.5,Math.min(0.2,rotX+dy*0.01)); lx=e.clientX; ly=e.clientY; draw();});
+canvas.addEventListener('pointerup',e=>{isDrag=false; if(moveDist<8){let r=canvas.getBoundingClientRect(); let px=(e.clientX-r.left)*window.devicePixelRatio, py=(e.clientY-r.top)*window.devicePixelRatio; let best=-1,minD=48*window.devicePixelRatio; screenCenters.forEach(sc=>{let d=Math.hypot(sc.x-px,sc.y-py); if(d<minD){minD=d;best=sc.id;}}); if(best!==-1)selectPart(best);}});
+canvas.addEventListener('wheel',e=>{e.preventDefault(); zoom=Math.max(0.4,Math.min(3.5,zoom*(e.deltaY<0?1.1:0.9))); draw();},{passive:false});
+setTimeout(resize,50);
+</script>
+</body>
+</html>
